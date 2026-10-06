@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: Apache-2.0
+source "application/rt-thread/lvgl-aic-smoke/third_party/lvgl-aic/Kconfig"
+
+menuconfig AIC_LVGL_SMOKE_APP
+    bool "Build the application-owned LVGL 9.6 smoke test"
+    default y
+    depends on AIC_LVGL_PORT && AIC_LVGL_USE_DISPLAY && AIC_LVGL_MANUAL_TEST
+    depends on RT_USING_EVENT
+
+if AIC_LVGL_SMOKE_APP
+
+config AIC_LVGL_SMOKE_THREAD_STACK_SIZE
+    int "Smoke UI thread stack size in bytes"
+    range 4096 131072
+    default 32768
+
+config AIC_LVGL_SMOKE_THREAD_PRIO
+    int "Smoke UI thread priority"
+    range 0 30
+    default 20
+
+config AIC_LVGL_SMOKE_CYCLES
+    int "Display lifecycle cycles before the persistent test page"
+    range 1 100
+    default 3
+
+config AIC_LVGL_SMOKE_FRAMES
+    int "Timer iterations per lifecycle cycle"
+    range 1 1000
+    default 5
+
+endif

@@ -1,0 +1,7 @@
+[submodule "third_party/lvgl-aic"]
+	path = third_party/lvgl-aic
+	url = https://github.com/boa-z/lvgl-aic.git
+	branch = main
+[submodule "third_party/lvgl"]
+	url = https://github.com/lvgl/lvgl.git
+	path = third_party/lvgl
