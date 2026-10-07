@@ -503,6 +503,52 @@ eight `SKIP YUV ARGB fmt=...` lines, then the later YUV and GE2D blocks;
 any remaining failure now names its reason (executor `rc=`, outside write
 `xy`/`got`/`want`).
 
+## Board run 11 (2026-10-07): rotated ARGB accepted, unclipped scale expectation revised
+
+The `yuv-argb-rot90` image was flashed; the pasted serial slice
+(9.378-12.908 s, banner not included) is archived at
+`output/lvgl-evidence/board-2026-10-07-yuv-argb-rot90/serial.log`, SHA-256
+`BAB4316555D580F0E3878597816C17BB60DA104A5B65D072740112CA8B039121`.
+
+- **Board run 10's rotation item is closed**: `PASS YUV ARGB fmt=3
+  rot=0/90/180/270 opa=64/128/255/128 error=1/1/0/1` followed by the eleven
+  v1.1 `SKIP` lines. Every earlier block of the slice stayed green (native
+  fills, I420 rotation/scale/tile probes, thirty-two YUV stripe cells,
+  packed probes, image-mask/mask/recolor, the twelve scale ratio cells with
+  `max_error<=2`, the nonuniform and clipped-pivot cases and the
+  `sx=15`/`sx=4097` fallbacks).
+- **New finding - stale probe expectation, not executor**: the unclipped
+  `sx=264 sy=256` probe stopped with `FAIL scale sx=264 sy=256 argb=0
+  clip=0 pivot=0` and no outcome on the line. The near-unity planner takes
+  the 32-wide clamped destination as two balanced commands whose fractional
+  phases stay inside the source, so the old SOFTWARE expectation no longer
+  matches. Because the check preceded the pixel oracle, the remaining
+  scale, tile, SPI stripe, video-window and counter/refresh blocks were
+  NOT_EVALUATED.
+- Corrective revision (component `a31c613a`): the probe asserts ENGINE and
+  runs its gradient/clip-guard oracle, the software branch and the generic
+  FAIL line print the outcome, and host `ge2d_scale_contract` pins the
+  dispatcher result (ENGINE, two submits, second strip crop `{15,0,17,32}`
+  to destination `{26,10,16,32}`). Host **73/73** GE and **35/35** no-GE
+  baseline PASS.
+
+Rebuilt candidate `-EvidenceTag scale-264-engine`
+(`output/lvgl-evidence/ge2d-fonts-widgets-aicp-player-apng-scale-264-engine`):
+image SHA-256 `6c49ba53abb3d94674850a1a2db4f659733cd5e71021878b317e1dbe92e4d8ea`,
+ELF SHA-256 `6c59ccf8c50c27c87f08f5df4686094eaf56e79d0fd5f4de332800e70669eaf5`;
+boot/app/static/image/manifest gates PASS from clean pinned sources (SDK
+`c290bbd1`, component `a31c613a`). Banner:
+
+    build: sdk=codex/port-lvgl-9.6@c290bbd1
+    build: lvgl-aic=codex/sdk-basic-capabilities@a31c613a
+    build: lvgl=9.6.0@80ca777e
+
+Expected next log: `PASS pixels=... clip_guard=OK engine=1` for the 264/256
+case, then the 32 RGB stripe cells, eight striped multipass cases, native
+tiles, tile+rotation, SPI stripes, the video-window block and the
+counter/refresh summary, with the YUV ARGB lines green; a remaining mismatch
+names its pixel, error and guard on its own line.
+
 ## Firmware checks
 
 | Profile | Build / link-map / image checks | Image bytes | SHA-256 |
