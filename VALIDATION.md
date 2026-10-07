@@ -440,8 +440,23 @@ This is a component-owned normalization; SDK behavior is unchanged. Host GE
 normalization turns the model red (`ARGB YUV f=0 angle=0 opa=64 xy=54,44
 c=3 error=54`).
 
-Rebuilt candidate `-EvidenceTag yuv-argb-alpha` (details added after the
-clean pinned build below).
+Rebuilt candidate `-EvidenceTag yuv-argb-alpha`
+(`output/lvgl-evidence/ge2d-fonts-widgets-aicp-player-apng-yuv-argb-alpha`):
+image SHA-256
+`7c2cd6be03596704ef481cfd14942bfb23db7584723ca9975e2b20eac62255bc`, ELF
+SHA-256 `87fe7799a8bc70827592bd1c90d9853b40ef106d3723d1e501b872ceeb8b7f14`;
+boot/app/static/image/manifest gates PASS from clean pinned sources (SDK
+`8de5bba7`, component `d5d60e0`), with the static gate now resolving the
+nested component pin. Banner:
+
+    build: sdk=codex/port-lvgl-9.6@8de5bba7
+    build: lvgl-aic=codex/sdk-basic-capabilities@d5d60e02
+    build: lvgl=9.6.0@80ca777e
+
+Expected next log: four `PASS YUV ARGB fmt=3 rot=0/90/180/270 ...` lines
+(a mismatch would print `xy`, `got` and `want`), eight `SKIP YUV ARGB
+fmt=...` lines for the probe list's tail, then the later YUV and GE2D
+blocks with no `FAIL YUV` line.
 
 ## Firmware checks
 
