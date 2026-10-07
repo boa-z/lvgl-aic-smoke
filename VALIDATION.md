@@ -549,6 +549,34 @@ tiles, tile+rotation, SPI stripes, the video-window block and the
 counter/refresh summary, with the YUV ARGB lines green; a remaining mismatch
 names its pixel, error and guard on its own line.
 
+## Board run 12 (2026-10-07): the full GE2D scale matrix closes green
+
+The `scale-264-engine` image was flashed; the pasted serial log
+(0.000-14.185 s, full boot banner included) is archived at
+`output/lvgl-evidence/board-2026-10-07-scale-264-engine/serial.log`, SHA-256
+`1667C86F7DE0D68B87348E61CCBE3416146CAEBB925E95FE8249A4129F74297C`.
+
+- **Board run 11's item is closed.** The revised unclipped probe reports
+  `PASS pixels=552 max_error=0 clip_guard=OK engine=1`: the two-command
+  near-unity plan and its fractional phases are hardware-verified.
+- All 40 RGB stripe cells pass (`max_error<=2`, `pixels=576/624/819/870`),
+  and all 20 tiled plus 8 arbitrary-angle multipass cases pass
+  (`max_error<=2`, `pixels=595/3024`), so the matrix that run 11 left
+  NOT_EVALUATED is now measured on hardware.
+- The twelve video-window probes, the GE2D counters (`accepted fill=23
+  image=19 layer=1`, `sw fill=0 image=0 layer=0`, `declined=8 errors=0`,
+  `refresh timing s=0 us_part=119292`, `ge2d_ready=1`) and the blend probes
+  all pass; `scale scheduler engine=10 errors=0`; the smoke summary reads
+  `PASS GE2D fill=23 image=19 layer=1 hw_layer=1 sw_layer=0 declined=8`.
+- The whole boot contains zero `FAIL` lines and zero `E/lvgl.*` records; the
+  YUV ARGB block stayed green (four `PASS ... error=1/1/0/1` plus eleven
+  `SKIP`). SPI stripe probes belong to the separate `-WithSpi` profile and
+  are intentionally not compiled into this image.
+
+Still open after this run: panel edges/touch human confirmation,
+`lv_aic_capture` dumps, physical scanout and GE timing, and the
+APNG/plane/GIF shell gates.
+
 ## Firmware checks
 
 | Profile | Build / link-map / image checks | Image bytes | SHA-256 |
@@ -599,7 +627,12 @@ Build and CTest logs are under `output/lvgl-host-app/`.
   ARGB probe (component fix `9892cea`). Still open: the re-flash of the
   `yuv-argb-alpha` candidate, the GE2D counter/refresh and video-window
   blocks, `lv_aic_capture` dumps, panel/visual and touch confirmation, and
-  the APNG/plane/GIF shell gates.
+  the APNG/plane/GIF shell gates. Board runs 10-12 then re-flashed the
+  staged candidates, closed the rotation staging item (run 11) and the
+  unclipped near-unity scale expectation (run 12), and measured the GE2D
+  counter/refresh and video-window blocks green (records below). Still
+  open: `lv_aic_capture` dumps, panel/visual and touch confirmation, physical
+  scanout/GE timing and the APNG/plane/GIF shell gates.
 - Event binary-sync and lifecycle startup checks passed on board; actual
   interrupt-context notifications remain a separate check.
 - Display/touch and GE2D rendering/timing still need on-board inspection via the
