@@ -458,6 +458,51 @@ Expected next log: four `PASS YUV ARGB fmt=3 rot=0/90/180/270 ...` lines
 fmt=...` lines for the probe list's tail, then the later YUV and GE2D
 blocks with no `FAIL YUV` line.
 
+## Board run 10 (2026-10-07): the rotated 2x strip and the 8x8 YUV minimum
+
+The `yuv-argb-alpha` image was flashed; the pasted serial slice
+(10.071-10.870 s, banner not included) is archived at
+`output/lvgl-evidence/board-2026-10-07-yuv-argb-alpha/serial.log`, SHA-256
+`3D4F16686F3EF0D860904B203AE6C05669A7FE85663F1E89920024BA7DD9841C`.
+
+- **Board run 9's alpha item is closed.** `PASS YUV ARGB fmt=3 rot=0
+  opa=64 error=1` replaced `error=39`; every earlier block of the slice
+  stayed green (four rotations, seven scales, both tiles, thirty-two
+  stripes, eight packed probes, three SKIPs).
+- **New finding - probe geometry, not executor:** after `PASS ... rot=0`
+  the block stopped silently. The 8-wide 90/270 clips at 2x inverse-map
+  to a 10x6 source crop; `submit()` declined (return 0) at its
+  `w < 8 || h < 8` guard - the same minimum the SDK enforces in
+  `check_blit()` ("the min size of yuv is 8x8"). The decline precedes
+  every cache handoff, allocation and write, so nothing was corrupted;
+  the probe rejected `!= 1` and printed no reason.
+- Corrective revision (component `2018f590`): the 90/270 clips are 16
+  wide (`{36,24,51,39}`, window 10x10) so the rotated strips reach the
+  engine with the alpha oracle intact, and every former silent exit now
+  prints a diagnostic (executor/decline `rc=`, clip-outside
+  `xy`/`got`/`want`, setup and lease checks). Host coverage:
+  `ge2d_yuv_v11_contract` pins the untouched decline and the exact
+  widened submit (crop `{12,2,10,10}`, phase `{0,32768}`, destination
+  `{36,24,16,16}`); `ge2d_yuv_contract` added ratio 512 to the
+  staged-ARGB matrix (**576 scenes, 294,912 analytic RGBA pixels, max
+  error 3**).
+
+Rebuilt candidate `-EvidenceTag yuv-argb-rot90`
+(`output/lvgl-evidence/ge2d-fonts-widgets-aicp-player-apng-yuv-argb-rot90`):
+image SHA-256 `2dc19002db18380a6477a6608f48444a4dfe96cab581e355f39326666577f220`,
+ELF SHA-256 `bfc0f89ce5e02e28df3172158f7c6c9d899c2b595851428b61fade08f2082145`;
+boot/app/static/image/manifest gates PASS from clean pinned sources (SDK
+`c342e2dc`, component `2018f590`). Banner:
+
+    build: sdk=codex/port-lvgl-9.6@c342e2dc
+    build: lvgl-aic=codex/sdk-basic-capabilities@2018f590
+    build: lvgl=9.6.0@80ca777e
+
+Expected next log: four `PASS YUV ARGB fmt=3 rot=0/90/180/270 ...` lines,
+eight `SKIP YUV ARGB fmt=...` lines, then the later YUV and GE2D blocks;
+any remaining failure now names its reason (executor `rc=`, outside write
+`xy`/`got`/`want`).
+
 ## Firmware checks
 
 | Profile | Build / link-map / image checks | Image bytes | SHA-256 |
