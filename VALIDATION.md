@@ -407,6 +407,42 @@ below), no `DIAG`/`aa=0` lines, then the yuv probe continues into the
 stripes, packed formats and the GE2D counter/refresh and video-window
 blocks.
 
+## Board run 9 (2026-10-07): tile-rot90 closed; the v1.1 staging alpha lane exposed
+
+The `yuv-tile-clean` image was flashed; the pasted serial slice (from 4.048 s,
+not including the banner) is archived at
+`output/lvgl-evidence/board-2026-10-07-yuv-argb/serial.log`, SHA-256
+`3D7B810BC351B1069E7D7B18D07C1A764B7C8F396944B789609825105140CD04`.
+
+- **Board run 8's open item is closed.** `PASS I420 tile rot=90 pixels=1920
+  max_error=3 guards=OK` with no `DIAG`/`aa=0` line: the
+  clean+invalidate readback and the host-measured software tolerance hold on
+  hardware. Every GE I420 rotation/scale/tile probe stayed green, as did the
+  thirty-two stripe lines (`error<=4`, whole and split refresh) and the
+  eight packed-format lines (`error=0`).
+- **New open item: the v1.1 bitblt staging alpha lane.** After three
+  `SKIP YUV ARGB fmt=32/33/34 ...` lines the YUV block printed
+  `FAIL YUV ARGB fmt=3 rot=0 error=39`. Probe index 3 is I400, the only
+  layout GE v1.1 admits; the uniform Y=100 frame left alpha 100 in the
+  private staging surface and the CPU tail mixed it with opa 64 to 25 where
+  the native fill oracle keeps 64 (64-25=39). `ge_bitblt()` builds its
+  blend command with `en_alpha_out_oxff=0`, and YUV has no source alpha to
+  pass through. The runner stopped at `FAIL YUV ARGB target probes` /
+  `FAIL YUV frame/CPU conversion contract`; the remaining eight SKIP
+  lines and the later mask/color-key, counter/refresh and video-window
+  blocks are NOT_EVALUATED. Panel/touch/capture NOT_RUN.
+
+Corrective revision (component `9892cea`): every engine-written crop of the
+opaque staging surface is invalidated, re-marked 0xff and cleaned back before
+the CPU tail; unwritten tile/rotation gaps keep zero alpha and stay skipped.
+This is a component-owned normalization; SDK behavior is unchanged. Host GE
+**73/73 PASS** and the no-GE2D baseline **35/35 PASS**; disabling the
+normalization turns the model red (`ARGB YUV f=0 angle=0 opa=64 xy=54,44
+c=3 error=54`).
+
+Rebuilt candidate `-EvidenceTag yuv-argb-alpha` (details added after the
+clean pinned build below).
+
 ## Firmware checks
 
 | Profile | Build / link-map / image checks | Image bytes | SHA-256 |
@@ -451,9 +487,13 @@ Build and CTest logs are under `output/lvgl-host-app/`.
   exposing the device-only `I420 tile rot=90` software-fallback mismatch
   (component diagnostics `047baa1`), and Board run 8 localized that mismatch
   to the probe's invalidate-only readback of the CPU-drawn fallback (component
-  fix `309f0da`). Still open: the re-flash of the `yuv-tile-clean` candidate,
-  the GE2D counter/refresh and video-window blocks, `lv_aic_capture` dumps,
-  panel/visual and touch confirmation, and the APNG/plane/GIF shell gates.
+  fix `309f0da`). Board run 9 verified the `yuv-tile-clean` readback fix
+  (`PASS I420 tile rot=90 max_error=3`), ran the stripes and packed blocks
+  green and exposed the GE v1.1 staging alpha lane on the first admitted I400
+  ARGB probe (component fix `9892cea`). Still open: the re-flash of the
+  `yuv-argb-alpha` candidate, the GE2D counter/refresh and video-window
+  blocks, `lv_aic_capture` dumps, panel/visual and touch confirmation, and
+  the APNG/plane/GIF shell gates.
 - Event binary-sync and lifecycle startup checks passed on board; actual
   interrupt-context notifications remain a separate check.
 - Display/touch and GE2D rendering/timing still need on-board inspection via the
