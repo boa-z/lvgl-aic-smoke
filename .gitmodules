@@ -5,3 +5,6 @@
 [submodule "third_party/lvgl"]
 	url = https://github.com/lvgl/lvgl.git
 	path = third_party/lvgl
+[submodule "third_party/iso14229"]
+	path = third_party/iso14229
+	url = https://github.com/driftregion/iso14229.git

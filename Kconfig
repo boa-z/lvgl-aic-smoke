@@ -29,4 +29,49 @@ config AIC_LVGL_SMOKE_FRAMES
     range 1 1000
     default 5
 
+config AIC_LVGL_SMOKE_WATCHDOG
+    bool "Bench recovery watchdog while the scheduler runs"
+    default y
+    depends on AIC_USING_WDT
+    help
+        A low-priority thread feeds the "wdt" device (10 s timeout, 3 s
+        period) so a total lockup resets the board into the shell instead of
+        hanging the bench. Shell: lv_aic_watchdog start|stop|status|hang
+        (hang is a deliberate self-test). Stop it before debugger halts.
+        Bench tool of this app, not part of lvgl-aic.
+
+config AIC_LVGL_SMOKE_CAN_OTA
+    bool "CAN-USB firmware update endpoint (bench debugging, UDS over ISO-TP)"
+    default n
+    depends on AIC_USING_CAN0 && RT_USING_CAN
+    help
+        Shell-driven UDS update endpoint (RX 0x7E0/TX 0x7E8 on CAN0)
+        sharing the wire protocol and host CLI with
+        forklift-meter-platform (tools/ota, same third-party pins).
+        A bench tool of this app, not part of lvgl-aic. SHA256 is
+        compiled from mbedtls sources (no package needed); the SDK
+        native installer links into the app. Admission is a shell
+        maintenance flag; stop is terminal until reboot. With
+        AIC_LVGL_USE_CAN_CAPTURE, this endpoint is the can0 reader that
+        also delivers the host's screenshot trigger.
+        See docs/ota-can-reuse.md.
+
+config AIC_LVGL_SMOKE_CAN_OTA_VERSION
+    string "Firmware version reported by the CAN OTA endpoint"
+    default "1.0.0"
+    depends on AIC_LVGL_SMOKE_CAN_OTA
+    help
+        Reported in the UDS info JSON. Build the OTA candidate with a
+        different value so the host can prove the new image booted.
+
+config AIC_LVGL_SMOKE_CAN_OTA_AUTOSTART
+    bool "Start the CAN OTA endpoint after the first presented frame"
+    default y
+    depends on AIC_LVGL_SMOKE_CAN_OTA
+    help
+        Lets the host reach a freshly activated trial image over CAN and
+        confirm it (RoutineControl 0xF003). An image that never reaches
+        its first frame stays unconfirmed and the bootloader rolls back
+        after bootlimit boots. Download still needs maintenance on.
+
 endif

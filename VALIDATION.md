@@ -577,6 +577,76 @@ Still open after this run: panel edges/touch human confirmation,
 `lv_aic_capture` dumps, physical scanout and GE timing, and the
 APNG/plane/GIF shell gates.
 
+## Board run 13 (2026-10-08): CAN OTA endpoint moved into this application
+
+The OTA endpoint (`ota/`, `third_party/iso14229`, `tools/ota`) moved from
+lvgl-aic into this repository; Kconfig `AIC_LVGL_SMOKE_CAN_OTA*` replaces
+`AIC_LVGL_USE_CAN_OTA` / `AIC_LVGL_CAN_OTA_*`. Images built with
+`build.ps1 -Phase ge2d -OfficialDemos meter,dashboard -WithCanCapture -WithCanOta`
+(tags `otamove`, version 1.0.0, SHA-256 `0739ED1680D8143D3F8B299AE39A3BB103343AE916DBD5AD58C88F81A2737653`; `otamove-b`,
+`-OtaVersion 1.0.1`, SHA-256 `84F4E7AADF5D48667CFC461EA042D4B8AF6BF2EAAF2F9B8B62EB3EB4CF1814CF`). The link map places
+`lv_aic_can_ota`, `meter_uds` and iso14229 objects under
+`application/rt-thread/lvgl-aic-smoke/{ota,third_party/iso14229}`.
+
+- USB flash of 1.0.0 (upgcmd): `CAN OTA endpoint autostart: ok`; CAN `info`
+  reports `lvgl-aic-smoke` 1.0.0, slot A, `backend_reason=ready`.
+- CAN screenshot `--trigger` (delivered through the OTA RX thread): PASS.
+- `maintenance on`, CAN download of the 1.0.1 package (1,082,368 B):
+  `CANDIDATE_READY` in 105 s (10.3 KB/s); `activate --reboot`; `info` then
+  reports 1.0.1, slot B.
+- Host: smoke `tests/host` 2/2 (update state machine, progress overlay);
+  lvgl-aic suites 75/75 and 74/74 without the OTA sources.
+
+Evidence: SDK `output/lvgl-evidence/board-2026-10-08-ota-in-smoke/`
+(`events.jsonl`/`can.asc` per step, serial log, screenshot). The board was
+left on slot B (1.0.1); the next USB flash restores slot A.
+
+## Board run 14 (2026-10-08): RGB565 framebuffer and gt911 touch
+
+Full record: component `docs/rgb565-touch-stage.md`. The product's
+framebuffer is RGB888 (its `LV_COLOR_DEPTH=16` is a 9.1-era leftover), so
+RGB565 was tested as a port capability, against an RGB888 image built with
+identical flags: 380 PASS / 0 FAIL / 11 SKIP / 0 `E/lvgl` on both, 599
+probe lines identical but one heap counter, meter 24 FPS and dashboard 48
+FPS on both, correct colors (CAN capture reports `RGB565`). gt911 with the
+product's 800x480 touch range, on the new smoke Touch page (five rings, on a
+virtual 1024x600 display): errors within 16 logical px, fit scale
+x=1.001 y=0.980, "OK, keep 800x480"; an earlier 1024x600-range run also
+mapped the four corners correctly; the Test touch button click works.
+Images: RGB888 `0A9041D2...C4946F`, RGB565 `5C3443F7...8835BC`, RGB565 with
+touch range 800x480 `DC287F2A...BE2FF7`. Evidence: SDK
+`output/lvgl-evidence/board-2026-10-08-fb565/` (both boot logs, screenshots,
+touch watch logs). The product application itself (GE2D/MPP enabled) was
+not built.
+
+## Board run 15 (2026-10-08): iso14229 aligned to release 0.11.0
+
+The OTA endpoint was rebuilt against iso14229 0.11.0 (`8a7eb23d`, the product's
+pin; before: `d018adc7` with a hand-checked-out isotp-c `v1.9.3`). Images from
+`build.ps1 -Phase ge2d -OfficialDemos meter,dashboard -WithCanCapture -WithCanOta`:
+1.0.0 `F308B695...9960AC` and, with `-OtaVersion 1.0.1`, `DD58703A...D561`.
+After a USB flash of 1.0.0, CAN `info` reported `lvgl-aic-smoke` 1.0.0, slot A,
+`backend_reason=ready`; with `maintenance on`, the 1,086,464-byte package
+downloaded in 105 s (10.4 KB/s, the same as on `d018adc7`) to `CANDIDATE_READY`
+(error 0); `activate --reboot` ended with `info` reporting 1.0.1, slot B,
+`IDLE`, error 0. Host: `tests/host` 2/2. Confirmation is still the SDK's own
+(see `docs/ota-can-reuse.md`), so this is not rollback validation. Evidence: SDK
+`output/lvgl-evidence/board-2026-10-08-smoke-iso14229-0.11.0/` (per-step
+`events.jsonl` and `can.asc`, image hashes). The board was left on slot B.
+
+## Board run 16 (2026-10-08): recovery watchdog moved here and made to work
+
+The bench watchdog moved from lvgl-aic into this application (`watchdog/`,
+`AIC_LVGL_SMOKE_WATCHDOG`). The moved code never armed the hardware: it did
+not call `rt_device_init()` on the `wdt` device, so the module clock stayed
+off, the control register ignored writes (`ctl=0`, counter static) and a
+deliberate lockup (`lv_aic_watchdog hang`) froze the board until a power
+cycle. With `rt_device_init()` added, and `stop` now disarming the hardware,
+the same lockup resets the board in about 10 s and it comes back with the
+application and the watchdog running. Full record in
+[docs/watchdog.md](docs/watchdog.md). Image SHA-256 `BE7D8683B393F1D822966A34578AE2551F525F4B950319FC2ED4804F048DBD7B`. Evidence: SDK
+`output/lvgl-evidence/board-2026-10-08-smoke-watchdog/`.
+
 ## Firmware checks
 
 | Profile | Build / link-map / image checks | Image bytes | SHA-256 |

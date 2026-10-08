@@ -17,6 +17,13 @@
 #include "lv_aic_display.h"
 #include "lv_aic_manual_test.h"
 #include "lvgl_aic_build_id.h"
+#ifdef AIC_LVGL_SMOKE_WATCHDOG
+#include "lv_aic_watchdog.h"
+#endif
+#ifdef AIC_LVGL_SMOKE_CAN_OTA
+#include "update/lv_aic_can_ota.h"
+#include "update/lv_aic_can_ota_widget.h"
+#endif
 
 typedef struct {
     lv_thread_sync_t *sync;
@@ -183,9 +190,19 @@ static void lvgl_aic_smoke_thread(void *parameter)
         bool frame_logged = false;
         for (;;) {
             uint32_t delay_ms = lv_timer_handler();
+#ifdef AIC_LVGL_SMOKE_CAN_OTA
+            /* Show/close the OTA progress overlay on this (LVGL) thread. */
+            lv_aic_can_ota_ui_poll();
+#endif
             if (!frame_logged && (lv_aic_display_flush_count_get() > 0U)) {
                 LOG_I("first frame presented; scheduler is still progressing");
                 frame_logged = true;
+#ifdef AIC_LVGL_SMOKE_CAN_OTA_AUTOSTART
+                /* Health gate for a trial boot: the host confirms only an
+                 * image that reached this point and answers over CAN. */
+                LOG_I("CAN OTA endpoint autostart: %s",
+                      lv_aic_can_ota_start() ? "ok" : "failed");
+#endif
             }
             lvgl_aic_smoke_delay(delay_ms);
         }
@@ -197,6 +214,12 @@ int main(void)
     rt_thread_t thread;
 
     ulog_global_filter_lvl_set(ULOG_OUTPUT_LVL);
+
+#ifdef AIC_LVGL_SMOKE_WATCHDOG
+    if (!lv_aic_watchdog_start()) {
+        LOG_E("watchdog start failed; bench lockups will not reboot");
+    }
+#endif
 
     thread = rt_thread_create("lvgl_aic_smoke",
                               lvgl_aic_smoke_thread,

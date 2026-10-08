@@ -93,10 +93,72 @@ group += DefineGroup(
     CPPPATH=[
         cwd,
         build_dir,
+        aic_root,
         os.path.join(aic_root, 'include'),
         os.path.join(aic_root, 'port'),
         os.path.join(aic_root, 'tests', 'manual'),
+        os.path.join(cwd, 'ota'),
+        os.path.join(cwd, 'watchdog'),
     ],
 )
+
+# Bench recovery watchdog (watchdog/): resets a locked-up board during tests. A
+# bench tool of this app, not an LVGL feature; the product supervises itself.
+if GetDepend('AIC_LVGL_SMOKE_WATCHDOG'):
+    group += DefineGroup('LVGL-AIC-SMOKE-WATCHDOG', [File('watchdog/lv_aic_watchdog.c')],
+                         depend=['AIC_LVGL_SMOKE_WATCHDOG'],
+                         CPPPATH=[os.path.join(cwd, 'watchdog')])
+
+# CAN-USB OTA debug endpoint (ota/, third_party/iso14229). A bench tool of this
+# app, not an LVGL feature: it reuses forklift-meter-platform's UDS/update
+# code and links the SDK native OTA installer. See docs/ota-can-reuse.md.
+if GetDepend('AIC_LVGL_SMOKE_CAN_OTA'):
+    ota_root = os.path.join(cwd, 'ota')
+    ota_iso = os.path.join(cwd, 'third_party', 'iso14229', 'src')
+    ota_pkg = os.path.join(root, 'packages', 'artinchip', 'ota')
+    ota_crypto = os.path.join(root, 'packages', 'third-party', 'mbedtls', 'mbedtls')
+    prj_chip = GetDepend('PRJ_CHIP').strip('"')
+    ota_src = ['ota/update/lv_aic_can_ota.c', 'ota/update/lv_aic_can_ota_widget.c',
+               'ota/update/meter_update.c', 'ota/update/meter_package.c',
+               'ota/update/meter_update_backend_aic.c', 'ota/update/meter_sha256_aic.c',
+               'ota/protocols/uds/meter_uds.c',
+               'third_party/iso14229/src/server.c', 'third_party/iso14229/src/tp.c',
+               'third_party/iso14229/src/util.c', 'third_party/iso14229/src/log.c',
+               'third_party/iso14229/src/tp/isotp_c.c',
+               'third_party/iso14229/src/tp/isotp-c/isotp.c']
+    ota_native = os.path.join(build_dir, 'lvgl-ota-native')
+    Env.VariantDir(ota_native, ota_pkg, duplicate=0)
+    ota_src += [os.path.join(ota_native, name) for name in ('ota.c', 'burn.c')]
+    # ota/ resolves update/, protocols/, contracts/ and tp/ (iso14229's
+    # isotp_c.c includes tp/isotp_c_shim.h); cwd resolves the shim's
+    # third_party/iso14229/... include.
+    ota_paths = [ota_root, cwd, ota_iso, ota_pkg,
+                 os.path.join(ota_crypto, 'include'), os.path.join(ota_crypto, 'library'),
+                 os.path.join(root, 'packages', 'artinchip', 'env'),
+                 os.path.join(root, 'packages', 'third-party', 'fdtlib'),
+                 os.path.join(root, 'bsp', 'common', 'include'),
+                 os.path.join(root, 'bsp', 'artinchip', 'sys', prj_chip, 'include')]
+    group += DefineGroup('LVGL-AIC-SMOKE-CAN-OTA',
+                         [File(path) for path in ota_src],
+                         depend=['AIC_LVGL_SMOKE_CAN_OTA'], CPPPATH=ota_paths,
+                         CPPDEFINES=['UDS_SYS=0', 'UDS_CUSTOM_MILLIS', 'UDS_TP_ISOTP_C',
+                                     'AIC_LVGL_BSP_RTTHREAD=1',
+                                     'AIC_LVGL_BSP_MPP=1', 'UDS_LOG_LEVEL=0',
+                                     'UDS_SERVER_DEFAULT_P2_MS=1',
+                                     'UDS_SERVER_RECV_BUF_SIZE=1024',
+                                     'UDS_SERVER_SEND_BUF_SIZE=1024',
+                                     'ISO_TP_DEFAULT_ST_MIN_US=0',
+                                     'ISO_TP_DEFAULT_RESPONSE_TIMEOUT_US=1000000',
+                                     'METER_AIC_OTA',
+                                     # The progress overlay uses the built-in
+                                     # 14 px font; global so LVGL compiles it.
+                                     'LV_FONT_MONTSERRAT_14=1'])
+    for api in ('start', 'stop', 'started', 'stopped', 'view'):
+        Env.AppendUnique(LINKFLAGS=['-Wl,-u,lv_aic_can_ota_' + api])
+    for api in ('create', 'destroy', 'present_view', 'refresh', 'ui_poll', 'ui_request'):
+        Env.AppendUnique(LINKFLAGS=['-Wl,-u,lv_aic_can_ota_widget_' + api])
+    for api in ('meter_uds_init', 'UDSServerPoll', 'meter_update_init',
+                'meter_package_init', 'meter_aic_update_backend'):
+        Env.AppendUnique(LINKFLAGS=['-Wl,-u,' + api])
 
 Return('group')
