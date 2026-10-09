@@ -72,7 +72,7 @@ static meter_uds_t ota_uds;
 static UDSTpISOTpC_t ota_transport;
 
 typedef struct {
-    bool started, maintenance, admitted, stopping, stopped, threads;
+    bool started, maintenance, session_maintenance, admitted, stopping, stopped, threads;
     bool busy, cancel;
     meter_update_state_t state;
     meter_update_error_t error;
@@ -295,6 +295,7 @@ static size_t ota_info(void *ctx, uint8_t *out, size_t capacity)
     ota_shared_t snapshot;
     rt_mutex_take(&ota_lock, RT_WAITING_FOREVER);
     snapshot = ota_shared;
+    snapshot.maintenance = ota_shared.maintenance || ota_shared.session_maintenance;
     rt_mutex_release(&ota_lock);
     meter_aic_boot_t boot = meter_aic_update_boot();
     int n = snprintf((char *)out, capacity,
@@ -337,6 +338,14 @@ static void ota_cancel(void *ctx)
     (void)ctx;
     rt_mutex_take(&ota_lock, RT_WAITING_FOREVER);
     ota_shared.cancel = true;
+    rt_mutex_release(&ota_lock);
+}
+
+static void ota_session_maintenance(void *ctx, bool on)
+{
+    (void)ctx;
+    rt_mutex_take(&ota_lock, RT_WAITING_FOREVER);
+    ota_shared.session_maintenance = on;
     rt_mutex_release(&ota_lock);
 }
 
@@ -402,7 +411,8 @@ static void ota_svc_entry(void *arg)
     for (;;) {
         rt_mutex_take(&ota_lock, RT_WAITING_FOREVER);
         bool stopping = ota_shared.stopping;
-        bool admitted = ota_shared.maintenance;
+        /* Shell flag or a CAN programming session; the smoke endpoint has no product admission hook. */
+        bool admitted = ota_shared.maintenance || ota_shared.session_maintenance;
         if (ota_shared.admitted && !admitted) {
             ota_shared.cancel = true;
         }
@@ -479,7 +489,8 @@ bool lv_aic_can_ota_start(void)
     }
     {
         meter_uds_port_t port = {NULL, ota_submit, ota_result, ota_info,
-                                 ota_can_reset, ota_reset, ota_cancel};
+                                 ota_can_reset, ota_reset, ota_cancel,
+                                 ota_session_maintenance};
         if (UDSServerTpISOTpCInit(&ota_transport, OTA_RX_ID, OTA_TX_ID,
                                   UDS_TP_NOOP_ADDR) != UDS_OK ||
             !meter_uds_init(&ota_uds, &ota_transport.hdl, &port)) {

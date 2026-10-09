@@ -58,6 +58,8 @@ static UDSErr_t event(UDSServer_t *srv, UDSEvent_t ev, void *arg)
         UDSDiagSessCtrlArgs_t *a = arg;
         if (a->type != 1u && a->type != 2u)
             return UDS_NRC_SubFunctionNotSupported;
+        if (u->port.maintenance)
+            u->port.maintenance(u->port.context, a->type == 2u);
         if (a->type == 1u)
         {
             u->port.cancel(u->port.context);
@@ -162,6 +164,8 @@ static UDSErr_t event(UDSServer_t *srv, UDSEvent_t ev, void *arg)
     {
         u->manifest_valid = false;
         u->pending = false;
+        if (u->port.maintenance)
+            u->port.maintenance(u->port.context, false);
         u->port.cancel(u->port.context);
         /* 使用上游初始化器一并清除旧的响应挂起、请求和传输上下文。 */
         UDSTp_t *transport = srv->tp;

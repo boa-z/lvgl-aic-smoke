@@ -35,8 +35,11 @@ then copy the files and the manifest to the other. This copy adds only
 `python -m ota update <package-dir>` (run from `tools/`) does the whole
 sequence with Chinese progress: read the device, check the package, wait for
 maintenance, write, activate and reboot, wait for the new version, verify. It
-asks before changing the device (`--yes` for scripts), prints the
-`lv_aic_can_ota maintenance on` UART command to type when the gate is closed,
+asks before changing the device (`--yes` for scripts), requests maintenance
+mode over CAN by opening the UDS programming session (`0x10 0x02`; the
+endpoint withdraws it on `0x10 0x01`, S3 timeout or reboot) and only falls
+back to printing the `lv_aic_can_ota maintenance on` UART command when the
+device does not enter maintenance,
 resumes after an interruption, and confirms an unsettled trial slot. Evidence
 goes to `evidence/update-<time>` unless `--evidence` is given.
 

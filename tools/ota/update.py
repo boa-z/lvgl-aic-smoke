@@ -71,9 +71,9 @@ def run(client, package, manifest_path, *, os_file, candidate_capacity=None, say
         client.programming()
         client.reboot()
     else:
-        step(3, "等待设备进入维护模式")
+        step(3, "请求设备进入维护模式")
         command = maintenance_command or MAINTENANCE_COMMANDS.get(info.get("product"), DEFAULT_MAINTENANCE_COMMAND)
-        _wait_maintenance(client, info, wait_maintenance, command, say, clock, sleep)
+        _enter_maintenance(client, info, wait_maintenance, command, say, clock, sleep)
         if resumed and state in READY_STATES:
             step(4, "跳过：设备上已有校验通过的候选包")
         elif state in IDLE_STATES:
@@ -89,18 +89,31 @@ def run(client, package, manifest_path, *, os_file, candidate_capacity=None, say
     return _verify(client, manifest, after, say, emit)
 
 
-def _wait_maintenance(client, info, wait, command, say, clock, sleep):
+def _enter_maintenance(client, info, wait, command, say, clock, sleep):
+    """先经 CAN 打开 UDS 编程会话请求维护模式（主流做法，无需串口）；设备或 Product 不接受时，
+    回退到等待串口命令，两条路径共用同一个准入判断。"""
+    if info.get("maintenance") in (True, 1):
+        say("      维护模式已开启")
+        return
     deadline = clock() + wait
+    try:
+        client.programming()
+    except Exception as exc:
+        say("      设备没有接受 CAN 编程会话请求（%s）" % exc)
+    asked_at = clock()
     announced = False
-    while info.get("maintenance") not in (True, 1):
-        if not announced:
-            say("      设备还没进入维护模式。请在设备串口执行：%s（最多等待 %d 秒）" % (command, wait))
+    while True:
+        info = client.info()  # 同时让编程会话保持有效
+        if info.get("maintenance") in (True, 1):
+            say("      维护模式已开启" + ("（经 CAN 编程会话）" if not announced else ""))
+            return
+        if not announced and clock() - asked_at >= 3:
+            say("      设备没有自动进入维护模式（旧固件，或产品暂不允许）。"
+                "请在设备串口执行：%s（最多再等待 %d 秒）" % (command, max(0, int(deadline - clock()))))
             announced = True
         if clock() >= deadline:
             raise UpdateError("等待 %d 秒仍未进入维护模式，已停止，设备没有被改动。" % wait)
         sleep(1)
-        info = client.info()
-    say("      维护模式已开启")
 
 
 def _download(client, package, manifest, policy, say, emit):

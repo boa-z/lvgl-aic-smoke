@@ -31,6 +31,8 @@ typedef struct
     bool (*can_reset)(void *);
     void (*reset)(void *);
     void (*cancel)(void *);
+    /** @brief 可选：编程会话（0x10 02）请求维护模式，离开会话、S3 超时时撤销；Product 的准入钩子仍有最终决定权。 */
+    void (*maintenance)(void *, bool);
 } meter_uds_port_t;
 /** @brief UDS 协议实例，不拥有 Flash 或 Domain。 */
 typedef struct
