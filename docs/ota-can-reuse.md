@@ -20,6 +20,16 @@ Goal: the same wire protocol and host CLI as the forklift product
 so one PCAN-USB adapter + one `tools/ota` CLI serves both. Third-party
 libraries are reused with identical pins; only glue is new.
 
+## Shared host scripts
+
+`tools/ota` is an identical copy of the `tools/ota` in the forklift-meter-platform
+Framework (not a cross-repository reference). `tools/ota/SHARED.sha256` records
+the hashes of the shared files and `python tools/ota/check_shared.py` verifies
+them. Change a shared file in one repository, run `check_shared.py --update`,
+then copy the files and the manifest to the other. This copy adds only
+`smoke_pack.py`, `package_inspector.c` and the smoke endpoint policy; the
+`confirm` command is shared but only meaningful against this endpoint.
+
 ## S1 — vendor (this commit, no build integration)
 
 Firmware, paths mirror the source tree for diffability:

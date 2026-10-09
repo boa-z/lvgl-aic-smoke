@@ -47,10 +47,9 @@ def pack(os_image, destination, product, hardware, version, policy, *, cpio="cpi
         def build(size):
             config = chr(10).join(("[image]", f'size = "{size}";', f'version = "{version}";',
                                    "", "[file]", "ota_info.bin:file;", f"{policy.os_file}:os;", ""))
-            # LF-only: text-mode \r\n translation would leak \r into values
-            # and fail byte-exact inspector matching (Windows bench).
-            with (work / "ota-subimgs.cfg").open("w", encoding="ascii", newline="\n") as cfg:
-                cfg.write(config)
+            # 二进制换行：文本模式在 Windows 会把 LF 写成 CRLF，CR 混入值后元数据与检查器逐字节比对失败。
+            with (work / "ota-subimgs.cfg").open("w", encoding="ascii", newline=chr(10)) as handle:
+                handle.write(config)
             result = subprocess.run([programs["mkenvimage"], "-s", "512", "-o", "ota_info.bin", "ota-subimgs.cfg"],
                                     cwd=work, capture_output=True, timeout=30)
             if result.returncode:
