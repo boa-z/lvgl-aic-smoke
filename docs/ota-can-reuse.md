@@ -22,13 +22,12 @@ libraries are reused with identical pins; only glue is new.
 
 ## Shared host scripts
 
-`tools/ota` is an identical copy of the `tools/ota` in the forklift-meter-platform
-Framework (not a cross-repository reference). `tools/ota/SHARED.sha256` records
-the hashes of the shared files and `python tools/ota/check_shared.py` verifies
-them. Change a shared file in one repository, run `check_shared.py --update`,
-then copy the files and the manifest to the other. This copy adds only
-`smoke_pack.py`, `package_inspector.c` and the smoke endpoint policy; the
-`confirm` command is shared but only meaningful against this endpoint.
+`tools/ota` is the [meter-ota-host](https://github.com/boa-z/meter-ota-host)
+submodule, the same one forklift-meter-platform mounts at `tools/ota`. Change
+the host tool there and bump the submodule pin in both repositories. This
+repository adds only `tools/smoke_pack.py`, `tests/host/package_inspector.c`
+and the smoke endpoint policy; the `confirm` command is shared but only
+meaningful against this endpoint.
 
 ## One-command update
 
@@ -77,8 +76,7 @@ Firmware, paths mirror the source tree for diffability:
   0xF001/0xF002/ECUReset/RDBI 0xF180`) mapped to bounded jobs.
 - `contracts/meter_update_view.h` — tiny state contract.
 
-Host (`tools/ota/`, same pins as
-`forklift.../tools/ota/requirements.txt`: `python-can==4.6.1`,
+Host (`tools/ota/`, the meter-ota-host submodule, `requirements.txt`: `python-can==4.6.1`,
 `can-isotp==2.0.7`, `udsoncan==1.25.1`):
 
 - `client.py` / `transport.py` / `pack.py` / `package.py` /
@@ -211,12 +209,12 @@ Bench note: `artinchip-flash burn` timed out mid-transfer twice while an
 
 ## Smoke package + progress UI (done)
 
-- `tools/ota/smoke_pack.py` drives the shared `pack()` for the smoke
+- `tools/smoke_pack.py` drives the shared `pack()` for the smoke
   product (`lvgl-aic-smoke` / `d50t-2-lite` / `1.0.0`, 4 MiB candidate):
   `output/ota-smoke-1.0.0/{ota.cpio,ota.manifest.json,package-report.json}`,
   package SHA256 recorded in the report; preflight PASS via the native
   inspector (`output/meter-ota-inspect.exe`, built from
-  `tools/ota/package_inspector.c` + `update/meter_package.c`).
+  `tests/host/package_inspector.c` + `update/meter_package.c`).
 - Windows bench notes: MSYS2 `pacman -S cpio u-boot-tools`
   (`msys/u-boot-tools` provides `mkenvimage`); `METER_OTA_INSPECTOR`
   points at the built inspector. `pack.py` writes `ota-subimgs.cfg`

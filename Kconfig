@@ -47,7 +47,7 @@ config AIC_LVGL_SMOKE_CAN_OTA
     help
         Shell-driven UDS update endpoint (RX 0x7E0/TX 0x7E8 on CAN0)
         sharing the wire protocol and host CLI with
-        forklift-meter-platform (tools/ota, same third-party pins).
+        forklift-meter-platform (tools/ota submodule meter-ota-host).
         A bench tool of this app, not part of lvgl-aic. SHA256 is
         compiled from mbedtls sources (no package needed); the SDK
         native installer links into the app. Admission is a shell

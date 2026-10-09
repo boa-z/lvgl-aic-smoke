@@ -11,7 +11,8 @@ lvgl-aic-smoke/
   main.c                  LVGL lifecycle, test page and UI thread
   ota/                    CAN-USB OTA debug endpoint (bench tool, see below)
   watchdog/               bench recovery watchdog ([docs/watchdog.md](docs/watchdog.md))
-  tools/ota/              host CLI and packer for that endpoint
+  tools/ota/              host CLI, packer and GUI (submodule boa-z/meter-ota-host)
+  tools/smoke_pack.py     packs a smoke OS image with that packer
   tests/host/             host contracts for ota/
   docs/ota-can-reuse.md   OTA design, provenance and board records
   third_party/
@@ -184,7 +185,7 @@ python -m ota @can info
 
 Build the candidate with `-WithCanOta -OtaVersion 1.0.1` and package its
 `d13x_os.itb` with
-`python ota/smoke_pack.py --os-image <itb> --out-dir <dir> --version 1.0.1`.
+`python smoke_pack.py --os-image <itb> --out-dir <dir> --version 1.0.1`.
 Packing needs GNU `cpio` and `mkenvimage` (MSYS2 `C:\msys64\usr\bin`) and
 `METER_OTA_INSPECTOR` pointing at the package inspector, which the host build
 below produces as `output/smoke-host/meter-ota-inspect.exe`. The SDK confirms

@@ -18,8 +18,8 @@ target_compile_options(smoke_update_contract PRIVATE -Wall -Wextra -Werror -UNDE
 add_test(NAME smoke_update_contract COMMAND smoke_update_contract)
 set_tests_properties(smoke_update_contract PROPERTIES TIMEOUT 60)
 
-# Package inspector the host packer runs (tools/ota: METER_OTA_INSPECTOR).
-add_executable(meter-ota-inspect "${SMOKE_ROOT}/tools/ota/package_inspector.c"
+# Package inspector the host packer runs (tools/ota submodule: METER_OTA_INSPECTOR).
+add_executable(meter-ota-inspect "${CMAKE_CURRENT_SOURCE_DIR}/package_inspector.c"
     "${SMOKE_ROOT}/ota/update/meter_package.c")
 target_include_directories(meter-ota-inspect PRIVATE "${SMOKE_ROOT}/ota")
 

@@ -7,7 +7,7 @@ candidate capacity (4 MiB) matches meter_aic_update_prepare().
 Needs GNU cpio + mkenvimage on PATH (MSYS2: pacman -S cpio uboot-tools).
 
 Example:
-  python3 smoke_pack.py --os-image output/.../images/d13x_os.itb
+  python3 tools/smoke_pack.py --os-image output/.../images/d13x_os.itb
       --out-dir output/ota-smoke-1.0.0
 """
 import argparse
@@ -15,7 +15,7 @@ import json
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from ota.pack import pack
 from ota.package import PackagePolicy
 
