@@ -3,8 +3,10 @@ import argparse
 import json
 from pathlib import Path
 import sys
+import time
 from .package import PackagePolicy
 from .client import Manifest, UpdateError, activate, confirm, download, preflight
+from .update import DEFAULT_MAINTENANCE_COMMAND
 
 
 def main(argv=None):
@@ -37,16 +39,30 @@ def main(argv=None):
     command.add_argument("--reboot", action="store_true")
     command = sub.add_parser("confirm")
     command.add_argument("--version", required=True)
+    command = sub.add_parser("update", help="一键升级：检查升级包、等待维护模式、写入、激活重启并校验")
+    command.add_argument("package", type=Path, help="pack 生成的目录，或其中的 ota.cpio")
+    command.add_argument("--manifest", type=Path, help="默认取升级包同目录的 ota.manifest.json")
+    command.add_argument("--os-file", default="d13x_os.itb")
+    command.add_argument("--candidate-capacity", type=int, help="默认采用设备上报的候选分区容量")
+    command.add_argument("--wait-maintenance", type=int, default=120, help="等待设备进入维护模式的秒数")
+    command.add_argument("--boot-timeout", type=int, default=90, help="激活后等待设备以新版本上线的秒数")
+    command.add_argument("--maintenance-command", help="提示用户在串口执行的命令，默认 " + DEFAULT_MAINTENANCE_COMMAND)
+    command.add_argument("--force", action="store_true", help="设备已是目标版本时也重新升级")
+    command.add_argument("--yes", action="store_true", help="不再询问确认（脚本或产线使用）")
     args = parser.parse_args(argv)
     log = None
     def emit(event):
         line = json.dumps(event, ensure_ascii=False)
-        print(line, flush=True)
+        # update 面向人：屏幕上只显示中文进度，结构化事件只写入取证日志。
+        if args.action != "update":
+            print(line, flush=True)
         if log:
             log.write(line + "\n")
             log.flush()
     try:
         policy = PackagePolicy(args.os_file, args.candidate_capacity) if args.action in ("preflight", "download", "pack") else None
+        if args.action == "update" and not args.evidence:
+            args.evidence = Path("evidence") / time.strftime("update-%Y%m%d-%H%M%S")
         if args.action == "pack":
             from .pack import pack
             emit(pack(args.os_image, args.destination, args.product, args.hardware, args.version, policy,
@@ -73,6 +89,23 @@ def main(argv=None):
                 emit(activate(client, args.version, args.reboot))
             elif args.action == "confirm":
                 emit(confirm(client, args.version))
+            elif args.action == "update":
+                from .update import locate, run
+                package, manifest_path = locate(args.package, args.manifest)
+
+                def approve(summary):
+                    if args.yes:
+                        return True
+                    if not sys.stdin.isatty():
+                        raise UpdateError("非交互环境下需要加 --yes 才会开始升级。")
+                    return input("即将" + summary + "。继续吗？[y/N] ").strip().lower() in ("y", "yes")
+                print("取证目录：%s" % args.evidence, flush=True)
+                result = run(client, package, manifest_path, os_file=args.os_file,
+                             candidate_capacity=args.candidate_capacity, emit=emit,
+                             approve=approve, wait_maintenance=args.wait_maintenance,
+                             boot_timeout=args.boot_timeout, maintenance_command=args.maintenance_command,
+                             force=args.force)
+                return 1 if result["event"] == "cancelled" else 0
             elif args.action == "abort":
                 client.programming()
                 client.abort()
@@ -80,9 +113,13 @@ def main(argv=None):
         return 0
     except KeyboardInterrupt:
         emit({"event": "error", "reason": "interrupted"})
+        if args.action == "update":
+            print("已中断。如果写入已经开始，设备会保留未完成的会话，可用 abort 命令中止。", flush=True)
         return 130
     except Exception as exc:
         emit({"event": "error", "reason": str(exc), "type": type(exc).__name__})
+        if args.action == "update":
+            print("升级失败：%s" % exc, flush=True)
         return 1
     finally:
         if log:

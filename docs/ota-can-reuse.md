@@ -30,6 +30,16 @@ then copy the files and the manifest to the other. This copy adds only
 `smoke_pack.py`, `package_inspector.c` and the smoke endpoint policy; the
 `confirm` command is shared but only meaningful against this endpoint.
 
+## One-command update
+
+`python -m ota update <package-dir>` (run from `tools/`) does the whole
+sequence with Chinese progress: read the device, check the package, wait for
+maintenance, write, activate and reboot, wait for the new version, verify. It
+asks before changing the device (`--yes` for scripts), prints the
+`lv_aic_can_ota maintenance on` UART command to type when the gate is closed,
+resumes after an interruption, and confirms an unsettled trial slot. Evidence
+goes to `evidence/update-<time>` unless `--evidence` is given.
+
 ## S1 — vendor (this commit, no build integration)
 
 Firmware, paths mirror the source tree for diffability:

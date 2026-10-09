@@ -14,7 +14,8 @@ import sys
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
-SHARED = ("__init__.py", "__main__.py", "client.py", "pack.py", "package.py", "transport.py", "requirements.txt")
+SHARED = ("__init__.py", "__main__.py", "client.py", "pack.py", "package.py", "transport.py", "update.py",
+          "requirements.txt")
 MANIFEST = HERE / "SHARED.sha256"
 
 
